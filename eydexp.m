@@ -3,6 +3,57 @@ function [s] = eydexp(filename)
 % eydexp - export data from asl *.eyd file. 
 % S = eydexp(filename)
 %
+% S is a struct with these fields:
+%   filename - name passed to function, used to open file from current dir
+%     (the rest of the fields are taken from the file itself)
+%   date     - creation date
+%   rate     - camera rate (Hz)
+%   nsegments- each "record/stop" pair makes a segment of sequential records
+%   segdiraddr - file addr of segment directory (used for parsing)
+%   items    - individual data fields found in each record (selected in ASL
+%              config), used for parsing
+%   bpr      - bytes per record. used for parsing
+%   segments - info about each segment
+%   data     - the data from the first (should be ONLY) segment. 
+% 
+% The 'S.data' field is what you want. This is a struct, with the following
+% vectors (each data record is a single row from each of these)
+% 
+% data.status     - status bits - see below
+% data.overtime   - if this record was preceded by any frames for which
+%                   there was no data (should always be zero, if not, there
+%                   are gaps in the data records!)
+% data.xdat       - xdat bits hold the sync markers (see below)
+% data.pupil      - pupil diameter, in gaze coord units
+% data.x          - gaze x
+% data.y          - gaze y
+% data.videofield - video field number for this record
+%
+%
+% The data records are sequential, one per frame period (1/rate). The
+% 'overtime' field should always be zero. If not, it means that there are
+% frames preceding this one for which there was no data. This record has a
+% gap preceding this of 'overtime' records. ALWAYS CHECK THAT OVERTIME IS
+% ALL ZEROS. I think this is almost always zero (haven't seen non-zero
+% values yet). 
+%
+% Status bits - from the ASL manual:
+%
+%  Bit Meaning (if 1)
+%  0 Head tracker enabled, monocular system or left eye binocular
+%  1 Head tracker enabled, right eye (binocular system only)
+%  2 Cornea Reflection found, right eye (binocular system only)
+%  3 Pupil Found, right eye (binocular system only)
+%  4 Cornea Reflection found, monocular system or left eye binocular
+%  5 Pupil Found, monocular system or left eye binocular
+%  6 Right eye data was simulated for left/right eye data synchronization (binocular only)
+%  7 Left eye data was simulated for left/right eye data synchronization (binocular only)
+%
+%  Check each record for good pupil data - i.e. each record with bit 3 set:
+%  good = bitand(s.data.xdat, 8)>0;
+%  This seems to work with data from Alyssa's rig. The assignment of bit 3
+%  seems wrong, as this is a monocular system. 
+%
 
 fid = fopen(filename);
 
